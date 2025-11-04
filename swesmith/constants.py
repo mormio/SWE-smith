@@ -21,6 +21,7 @@ KEY_PATCH = "patch"
 KEY_TIMED_OUT = "timed_out"
 LOG_DIR_BUG_GEN = Path("logs/bug_gen")
 LOG_DIR_ENV = Path("logs/build_images/env")
+LOG_DIR_AUGMENT = Path("logs/augment_bug_gen")
 LOG_DIR_ISSUE_GEN = Path("logs/issue_gen")
 LOG_DIR_RUN_VALIDATION = Path("logs/run_validation")
 LOG_DIR_TASKS = Path("logs/task_insts")
@@ -74,6 +75,35 @@ class CodeProperty(Enum):
     HAS_BINARY_OP = "has_binary_op"
     HAS_BOOL_OP = "has_bool_op"
     HAS_UNARY_OP = "has_unary_op"
+
+@dataclass
+class FileEntity:
+    """Represents a whole source file as a code unit."""
+    file_path: str
+    src_code: str
+
+    def __post_init__(self):
+        if isinstance(self.file_path, Path):
+            self.file_path = str(self.file_path)
+
+    @property
+    def ext(self) -> str:
+        """File extension (e.g. 'py')."""
+        return self.file_path.rsplit(".", 1)[-1].lower()
+
+    @property
+    def name(self) -> str:
+        """Filename (without directory or extension)."""
+        return Path(self.file_path).stem
+
+    @property
+    def stub(self) -> str:
+        """Return the file content stripped of comments and blank lines."""
+        lines = [
+            line for line in self.src_code.splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+        return "\n".join(lines)
 
 
 class CodeEntityMeta(type):
