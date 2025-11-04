@@ -588,6 +588,39 @@ def test_get_test_cmd_non_pytest_eval():
     assert test_command == "go test"
     assert test_files == []
 
+def test_extract_files(tmp_path):
+    """Test the extract_files method for filtering .py source files and excluding tests.
+    MORGANE ADDED FOR TAKEHOME. """
+    # Create fake repo structure
+    src_dir = tmp_path / "src"
+    tests_dir = tmp_path / "tests"
+    src_dir.mkdir()
+    tests_dir.mkdir()
+
+    # Files to include/exclude
+    valid_file = src_dir / "main.py"
+    invalid_ext = src_dir / "README.md"
+    test_file = tests_dir / "test_main.py"
+
+    valid_file.write_text("print('hello')")
+    invalid_ext.write_text("# not a py file")
+    test_file.write_text("print('test')")
+
+    # Mock profile that points to tmp_path
+    mock_rp = MockRepoProfile(str(tmp_path))
+    mock_rp.exts = [".py"]  # Only look for Python files
+
+    # Call extract_files (should exclude tests by default)
+    files = mock_rp.extract_files()
+    assert str(valid_file) in files
+    assert str(test_file) not in files  # excluded
+    assert str(invalid_ext) not in files  # wrong ext
+
+    # Call again with exclude_tests=False (should include test files)
+    files_all = mock_rp.extract_files(exclude_tests=False)
+    assert str(test_file) in files_all
+    assert str(valid_file) in files_all
+
 
 def test_extract_entities_simple(tmp_path):
     # Create a simple Python file with a class and a function
