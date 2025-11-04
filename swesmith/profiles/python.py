@@ -631,6 +631,17 @@ class Parsimonious0d3f5f93(PythonProfile):
     repo: str = "parsimonious"
     commit: str = "0d3f5f93c98ae55707f0958366900275d1ce094f"
 
+from dataclasses import dataclass
+from swesmith.profiles.python import PythonProfile, ENV_NAME
+
+@dataclass
+class CoveragePy7a2b2d4d(PythonProfile):
+    owner: str = "nedbat"
+    repo: str = "coveragepy"
+    commit: str = "7a2b2d4d"
+    test_cmd: str = "pytest -q"
+
+
 
 @dataclass
 class Parso338a5760(PythonProfile):

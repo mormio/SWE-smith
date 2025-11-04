@@ -4,7 +4,7 @@ import subprocess
 
 from dotenv import load_dotenv
 from itertools import combinations
-from swesmith.constants import TEMP_PATCH, BugRewrite, CodeEntity
+from swesmith.constants import TEMP_PATCH, BugRewrite, CodeEntity, FileEntity
 
 load_dotenv()
 
@@ -42,6 +42,11 @@ def apply_code_change(candidate: CodeEntity, bug: BugRewrite) -> None:
             (lines[: candidate.line_start - 1] + change + lines[candidate.line_end :])
         )
 
+def apply_file_change(candidate: FileEntity, bug: BugRewrite) -> None:
+    """Replaces the entire file content with the model's rewritten code."""
+    with open(candidate.file_path, "w", encoding="utf-8") as f:
+        f.write(bug.rewrite.strip() + "\n")
+
 
 def apply_patches(repo: str, patch_files: list[str]) -> str | None:
     """Apply multiple patches to a target local directory, and get the combined patch."""
@@ -71,7 +76,10 @@ def apply_patches(repo: str, patch_files: list[str]) -> str | None:
 
 def get_bug_directory(log_dir, candidate: CodeEntity):
     """Get the bug directory path for a given candidate."""
-    signature_hash = hashlib.sha256(candidate.signature.encode()).hexdigest()[:8]
+    if hasattr(candidate, "signature"):
+        signature_hash = hashlib.sha256(candidate.signature.encode()).hexdigest()[:8]
+    else:
+        signature_hash = hashlib.sha256(candidate.file_path.encode()).hexdigest()[:8] # for FileEntity
     return (
         log_dir
         / candidate.file_path.replace("/", "__")

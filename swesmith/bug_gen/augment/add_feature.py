@@ -32,7 +32,7 @@ from litellm import completion
 from litellm.cost_calculator import completion_cost
 
 from swesmith.bug_gen.llm.utils import extract_code_block
-
+from dotenv import load_dotenv
 from swesmith.profiles import registry
 from swesmith.constants import (
     LOG_DIR_AUGMENT,
@@ -46,8 +46,10 @@ from swesmith.bug_gen.utils import (
     apply_code_change,
     get_bug_directory,
     get_patch,
+    apply_file_change,
 )
 
+load_dotenv()
 logging.getLogger("LiteLLM").setLevel(logging.WARNING)
 litellm.drop_params = True
 litellm.suppress_debug_info = True
@@ -104,7 +106,77 @@ def gen_augmented_entity(
     # Remove empty messages
     messages = [x for x in messages if x["content"]]
     bugs = []
-    response: Any = completion(model=model, messages=messages, n=n_bugs, temperature=1)
+    response: Any = completion(model=model, messages=messages, n=n_bugs, temperature=temperature)
+    for choice in response.choices:
+        message = choice.message
+        explanation = (
+            message.content.split("Explanation:")[-1].strip()
+            if "Explanation" in message.content
+            else message.content.split("```")[-1].strip()   
+        )
+        bugs.append(
+            BugRewrite(
+                rewrite=extract_code_block(message.content),
+                explanation=explanation,
+                cost=completion_cost(completion_response=response) / n_bugs, #TODO: the n_bugs param is confusing. 
+                output=message.content,
+                strategy="llm_augmented_entity",
+            )
+        )
+    return bugs
+
+
+def gen_augmented_file(
+    candidate: FileEntity, configs: dict, n_bugs: int, model: str, temperature: float = 1
+) -> list[BugRewrite]:
+    PROMPT_KEYS = ["system", "file_instance"]
+    """
+    Given the source code of a file, return n feature-augmented (buggy) versions.
+    """
+
+    def format_prompt(prompt: str | None, config: dict, candidate: CodeEntity) -> str:
+        if not prompt:
+            return ""
+        env = jinja2.Environment()
+
+        def jinja_shuffle(seq):
+            result = list(seq)
+            random.shuffle(result)
+            return result
+
+        env.filters["shuffle"] = jinja_shuffle
+        template = env.from_string(prompt)
+
+        candidate_dict = {
+            field.name: getattr(candidate, field.name)
+            for field in dataclasses.fields(candidate)
+        }
+        return template.render(**candidate_dict, **config.get("parameters", {}))
+    
+    def get_role(key: str) -> str:
+        if key == "system":
+            return "system"
+        return "user"
+
+    # Get prompt content
+    prompt_content = {
+        "file_path": candidate.file_path,
+        "file_src_code": open(candidate.file_path).read(),
+    }
+
+    # Generate a rewrite
+    messages = [
+        {
+            "content": configs[k].format(**prompt_content),
+            "role": "user" if k != "system" else "system",
+        }
+        for k in PROMPT_KEYS
+        if k in configs
+    ]
+    # Remove empty messages
+    messages = [x for x in messages if x["content"]]
+    bugs = []
+    response: Any = completion(model=model, messages=messages, n=n_bugs, temperature=temperature)
     for choice in response.choices:
         message = choice.message
         explanation = (
@@ -118,7 +190,7 @@ def gen_augmented_entity(
                 explanation=explanation,
                 cost=completion_cost(completion_response=response) / n_bugs, #TODO: the n_bugs param is confusing. 
                 output=message.content,
-                strategy="llm_augmented_entity",
+                strategy="llm_augmented_file",
             )
         )
     return bugs
@@ -133,7 +205,7 @@ def main(
     scope: str = "entity",
     n_workers: int = 1,
     max_bugs: int = -1,
-    temperature: float = 1,
+    temperature: float = 1.4,
 ):
     # Check arguments
     assert os.path.exists(config_file), f"{config_file} not found"
@@ -181,7 +253,6 @@ def main(
             assert scope == "entity"
             bugs = gen_augmented_entity(candidate, configs, n_bugs, model, temperature)
         elif isinstance(candidate, FileEntity):
-            raise NotImplementedError("File entity augmentation is not implemented yet")
             assert scope == "file"
             bugs = gen_augmented_file(candidate, configs, n_bugs, model, temperature)
         else:
@@ -200,7 +271,10 @@ def main(
             try:
                 with open(bug_dir / metadata_path, "w") as f:
                     json.dump(bug.to_dict(), f, indent=2)
-                apply_code_change(candidate, bug)
+                if scope == "entity":
+                    apply_code_change(candidate, bug)
+                elif scope == "file":
+                    apply_file_change(candidate, bug)
                 patch = get_patch(repo, reset_changes=True)
                 if not patch:
                     raise ValueError("Patch is empty.")
@@ -208,7 +282,7 @@ def main(
                     f.write(patch)
             except Exception as e:
                 print(
-                    f"Error applying bug to {candidate.name} in {candidate.file_path}: {e}",
+                    f"Error applying bug to {candidate.name} in {candidate.file_path}: {e}" if scope == "entity" else f"Error applying bug to {candidate.file_path}: {e}",
                 )
                 # import traceback
                 # print(f"Traceback:\n{''.join(traceback.format_exc())}")

@@ -1,0 +1,43 @@
+name: lm_augment
+system: |-
+  You are a software developer tasked with adding or modifying functionality **within the existing code**.
+  You must not add new external imports or dependencies.
+  Modify existing logic, defaults, or conditions to extend or slightly alter behavior.
+  The code should still run and use only existing imports.
+
+entity_instance: |-
+  Please augment the function `{func_name}` in the following code:
+
+  ```
+  {file_src_code}
+  ```
+
+  Your modification should improve or extend functionality — for example, better handling of edge cases, additional options, refactoring for clarity, or behavioral improvements.
+  Your answer should be formatted as follows:
+
+  Explanation:
+  <explanation>
+
+  Augmented Code:
+  ```
+  <augmented_code>
+  ```
+
+file_instance: |-
+  Please augment the code in the following file `{file_path}`:
+
+  ```
+  {file_src_code}
+  ```
+
+  Your modification should improve or extend functionality — for example, better handling of edge cases, additional options, refactoring for clarity, or behavioral improvements.
+  Your code should modify the logic of existing code, not only add new, distinct code.
+  Your answer should be formatted as follows:
+
+  Explanation:
+  <explanation>
+
+  Augmented File:
+  ```
+  <augmented_file>
+  ```

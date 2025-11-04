@@ -33,6 +33,7 @@ from swesmith.constants import (
     ORG_NAME_GH,
     INSTANCE_REF,
     CodeEntity,
+    FileEntity,
 )
 from unidiff import PatchSet
 
@@ -67,7 +68,7 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
     eval_sets: set[str] = field(default_factory=set)
 
     # Install + Test specifications
-    timeout: int = 90  # timeout (sec) for running test suite for a single instance
+    timeout: int = 240  # timeout (sec) for running test suite for a single instance
     timeout_ref: int = 900  # timeout for running entire test suite
 
     # `min_testing`: If set, then subset of tests (not all) are run for post-bug validation
@@ -276,7 +277,7 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
         dirs_exclude: list[str] = [],
         dirs_include: list[str] = [],
         exclude_tests: bool = True,
-    ) -> list[str]:
+    ) -> list[FileEntity]:
         """
         Return a list of source file paths (e.g. .py, .cpp) in the repository.
         Respects language-specific extensions from `self.exts`.
@@ -297,7 +298,8 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
                 if Path(file).suffix not in self.exts:
                     continue
 
-                files.append(os.path.join(root, file))
+                _file_entity = FileEntity(file_path=os.path.join(root, file), src_code=open(os.path.join(root, file), "r", encoding="utf-8").read())
+                files.append(_file_entity)
 
         if cloned:
             shutil.rmtree(dir_path)
