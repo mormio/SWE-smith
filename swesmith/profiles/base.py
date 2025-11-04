@@ -271,6 +271,38 @@ class RepoProfile(ABC, metaclass=SingletonMeta):
         else:
             return dest, False
 
+    def extract_files(
+        self,
+        dirs_exclude: list[str] = [],
+        dirs_include: list[str] = [],
+        exclude_tests: bool = True,
+    ) -> list[str]:
+        """
+        Return a list of source file paths (e.g. .py, .cpp) in the repository.
+        Respects language-specific extensions from `self.exts`.
+        """
+        dir_path, cloned = self.clone()
+        files = []
+        for root, _, filenames in os.walk(dir_path):
+            for file in filenames:
+                # Skip test files if requested
+                if exclude_tests and self._is_test_path(root, file):
+                    continue
+                if dirs_exclude and any(x in root for x in dirs_exclude):
+                    continue
+                if dirs_include and not any(x in root for x in dirs_include):
+                    continue
+
+                # Only keep supported source extensions (e.g. .py)
+                if Path(file).suffix not in self.exts:
+                    continue
+
+                files.append(os.path.join(root, file))
+
+        if cloned:
+            shutil.rmtree(dir_path)
+        return files
+
     def extract_entities(
         self,
         dirs_exclude: list[str] = [],
