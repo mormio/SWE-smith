@@ -1,0 +1,40 @@
+diff --git a/monkeytype/typing.py b/monkeytype/typing.py
+index 507732b..b94af47 100644
+--- a/monkeytype/typing.py
++++ b/monkeytype/typing.py
+@@ -142,24 +142,28 @@ def shrink_types(types, max_typed_dict_size):
+     types = tuple(types)
+     if len(types) == 0:
+         return Any
++    
++    # Rewrite anonymous TypedDicts to regular Dicts
++    rewriter = RewriteAnonymousTypedDictToDict()
++    rewritten_types = [rewriter.rewrite(typ) for typ in types]
++    
+     if all(is_anonymous_typed_dict(typ) for typ in types):
+         return shrink_typed_dict_types(types, max_typed_dict_size)
++    
+     # Don't rewrite anonymous TypedDict to Dict if the types are all the same,
+     # such as [Tuple[TypedDict(...)], Tuple[TypedDict(...)]].
+-    if all(types_equal(typ, types[0]) for typ in types[1:]):
+-        return types[0]
++    if all(types_equal(typ, rewritten_types[0]) for typ in rewritten_types[1:]):
++        return rewritten_types[0]
+ 
+     # If they are all lists, shrink their argument types. This way, we avoid
+     # rewriting heterogeneous anonymous TypedDicts to Dict.
+-    if all(is_list(typ) for typ in types):
++    if all(is_list(typ) for typ in rewritten_types):
+         annotation = shrink_types(
+-            (getattr(typ, "__args__")[0] for typ in types), max_typed_dict_size
++            (getattr(typ, "__args__")[0] for typ in rewritten_types), max_typed_dict_size
+         )
+         return List[annotation]
+ 
+-    all_dict_types = tuple(
+-        RewriteAnonymousTypedDictToDict().rewrite(typ) for typ in types
+-    )
++    all_dict_types = tuple(rewritten_types)
+     return Union[all_dict_types]
+ 
+ 

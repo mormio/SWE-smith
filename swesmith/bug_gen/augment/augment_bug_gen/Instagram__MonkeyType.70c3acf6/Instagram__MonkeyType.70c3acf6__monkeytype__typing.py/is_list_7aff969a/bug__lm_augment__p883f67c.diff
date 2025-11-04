@@ -1,0 +1,13 @@
+diff --git a/monkeytype/typing.py b/monkeytype/typing.py
+index 507732b..d2d1519 100644
+--- a/monkeytype/typing.py
++++ b/monkeytype/typing.py
+@@ -49,7 +49,7 @@ DUMMY_OPTIONAL_TYPED_DICT_NAME = "OPTIONAL_TYPED_DICT_NAME"
+ 
+ 
+ def is_list(typ: type) -> bool:
+-    return is_generic(typ) and name_of_generic(typ) == "List"
++    return is_generic(typ) and name_of_generic(typ) == "List" or issubclass(typ, list)
+ 
+ 
+ def make_typed_dict(*, required_fields=None, optional_fields=None) -> type:

@@ -1,0 +1,13 @@
+diff --git a/monkeytype/typing.py b/monkeytype/typing.py
+index 507732b..11ad5a9 100644
+--- a/monkeytype/typing.py
++++ b/monkeytype/typing.py
+@@ -164,6 +164,8 @@ def shrink_types(types, max_typed_dict_size):
+ 
+ 
+ def make_iterator(typ):
++    if typ is NoneType:
++        return Iterator[Any]
+     return Iterator[typ]
+ 
+ 

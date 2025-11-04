@@ -1,0 +1,23 @@
+diff --git a/docs/plugins/conversion_table.py b/docs/plugins/conversion_table.py
+index ffe6d4b..4ad0824 100644
+--- a/docs/plugins/conversion_table.py
++++ b/docs/plugins/conversion_table.py
+@@ -36,9 +36,17 @@ class Row:
+     def field_type_str(self) -> str:
+         return f'{self.field_type.__name__}' if hasattr(self.field_type, '__name__') else f'{self.field_type}'
+ 
++    @property
+     @property
+     def input_type_str(self) -> str:
+-        return f'{self.input_type.__name__}' if hasattr(self.input_type, '__name__') else f'{self.input_type}'
++        if hasattr(self.input_type, '__name__'):
++            return self.input_type.__name__
++        elif isinstance(self.input_type, str):
++            return self.input_type
++        elif self.input_type in (int, float, bool, str, bytes, bytearray, list, tuple, set, dict, Decimal, date, datetime, time, timedelta):
++            return self.input_type.__name__
++        else:
++            return str(self.input_type)
+ 
+     @property
+     def input_source_str(self) -> str:

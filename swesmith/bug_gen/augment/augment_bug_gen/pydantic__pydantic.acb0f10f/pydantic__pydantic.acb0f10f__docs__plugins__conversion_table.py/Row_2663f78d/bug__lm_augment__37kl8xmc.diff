@@ -1,0 +1,117 @@
+diff --git a/docs/plugins/conversion_table.py b/docs/plugins/conversion_table.py
+index ffe6d4b..dd792ae 100644
+--- a/docs/plugins/conversion_table.py
++++ b/docs/plugins/conversion_table.py
+@@ -20,6 +20,29 @@ from typing_extensions import TypedDict
+ from pydantic import ByteSize, InstanceOf
+ 
+ 
++@dataclass
++from __future__ import annotations as _annotations
++
++import collections
++import typing
++from collections import deque
++from collections.abc import Iterable, Mapping, Sequence
++from dataclasses import dataclass
++from datetime import date, datetime, time, timedelta
++from decimal import Decimal
++from enum import Enum, IntEnum
++from ipaddress import IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, IPv6Network
++from pathlib import Path
++from re import Pattern
++from typing import Any
++from uuid import UUID
++
++from pydantic_core import CoreSchema, core_schema
++from typing_extensions import TypedDict
++
++from pydantic import ByteSize, InstanceOf
++
++
+ @dataclass
+ class Row:
+     field_type: type[Any] | str
+@@ -31,6 +54,7 @@ class Row:
+     valid_examples: list[Any] | None = None
+     invalid_examples: list[Any] | None = None
+     core_schemas: list[type[CoreSchema]] | None = None
++    default: Any = None  # Added default parameter
+ 
+     @property
+     def field_type_str(self) -> str:
+@@ -53,6 +77,74 @@ class Row:
+             return ''
+ 
+ 
++@dataclass
++class ConversionTable:
++    rows: list[Row]
++
++    col_names = [
++        'Field Type',
++        'Input',
++        'Strict',
++        'Input Source',
++        'Conditions',
++    ]
++    open_nowrap_span = '<span style="white-space: nowrap;">'
++    close_nowrap_span = '</span>'
++
++    def col_values(self, row: Row) -> list[str]:
++        o = self.open_nowrap_span
++        c = self.close_nowrap_span
++
++        return [
++            f'{o}`{row.field_type_str}`{c}',
++            f'{o}`{row.input_type_str}`{c}',
++            '✓' if row.strict else '',
++            f'{o}{row.input_source_str}{c}',
++            row.condition if row.condition else '',
++        ]
++
++    @staticmethod
++    def row_as_markdown(cols: list[str]) -> str:
++        return f'| {" | ".join(cols)} |'
++
++    def as_markdown(self) -> str:
++        lines = [self.row_as_markdown(self.col_names), self.row_as_markdown(['-'] * len(self.col_names))]
++        for row in self.rows:
++            lines.append(self.row_as_markdown(self.col_values(row)))
++        return '\n'.join(lines)
++
++    @staticmethod
++    def row_sort_key(row: Row) -> Any:
++        field_type = row.field_type_str or ' '
++        input_type = row.input_type_str or ' '
++        input_source = row.input_source_str
++
++        # Include the .isupper() to make it so that leading-lowercase items come first
++        return field_type[0].isupper(), field_type, input_type[0].isupper(), input_type, input_source
++
++    def sorted(self) -> ConversionTable:
++        return ConversionTable(sorted(self.rows, key=self.row_sort_key))
++
++    def filtered(self, predicate: typing.Callable[[Row], bool]) -> ConversionTable:
++        return ConversionTable([row for row in self.rows if predicate(row)])
++
++
++table_rows: list[Row] = [
++    Row(
++        str,
++        str,
++        strict=True,
++        python_input=True,
++        json_input=True,
++        core_schemas=[core_schema.StringSchema],
++        default=''  # Added default value
++    ),
++    # Other rows...
++]
++
++conversion_table = ConversionTable(table_rows).sorted()
++
++
+ @dataclass
+ class ConversionTable:
+     rows: list[Row]

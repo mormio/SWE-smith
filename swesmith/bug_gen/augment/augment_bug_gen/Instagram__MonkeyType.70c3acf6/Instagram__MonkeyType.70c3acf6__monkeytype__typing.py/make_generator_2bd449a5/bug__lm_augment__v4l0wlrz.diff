@@ -1,0 +1,16 @@
+diff --git a/monkeytype/typing.py b/monkeytype/typing.py
+index 507732b..3feed27 100644
+--- a/monkeytype/typing.py
++++ b/monkeytype/typing.py
+@@ -168,7 +168,10 @@ def make_iterator(typ):
+ 
+ 
+ def make_generator(yield_typ, send_typ, return_typ):
+-    return Generator[yield_typ, send_typ, return_typ]
++    if send_typ is None and return_typ is None:
++        return Iterator[yield_typ]
++    else:
++        return Generator[yield_typ, send_typ, return_typ]
+ 
+ 
+ _BUILTIN_CALLABLE_TYPES = (

@@ -1,0 +1,32 @@
+diff --git a/monkeytype/typing.py b/monkeytype/typing.py
+index 507732b..0fcc587 100644
+--- a/monkeytype/typing.py
++++ b/monkeytype/typing.py
+@@ -93,7 +93,13 @@ def shrink_typed_dict_types(typed_dicts: List[type], max_typed_dict_size: int) -
+     key_value_types_dict = defaultdict(list)
+     existing_optional_fields = []
+     for typed_dict in typed_dicts:
+-        required_fields, optional_fields = field_annotations(typed_dict)
++        if is_anonymous_typed_dict(typed_dict):
++            required_fields, optional_fields = field_annotations(typed_dict)
++        else:
++            required_fields = {
++                name: typ for name, typ in typed_dict.__annotations__.items()
++            }
++            optional_fields = {}
+         for key, value_type in required_fields.items():
+             key_value_types_dict[key].append(value_type)
+         existing_optional_fields.extend(optional_fields.items())
+@@ -110,7 +116,11 @@ def shrink_typed_dict_types(typed_dicts: List[type], max_typed_dict_size: int) -
+     for key, value_type in existing_optional_fields:
+         optional_fields[key].append(value_type)
+ 
+-    if len(required_fields) + len(optional_fields) > max_typed_dict_size:
++    # Check the complexity of the resulting TypedDict
++    total_complexity = sum(
++        len(value_types) for value_types in chain(required_fields.values(), optional_fields.values())
++    )
++    if total_complexity > max_typed_dict_size:
+         value_type = shrink_types(
+             list(
+                 chain.from_iterable(

@@ -1,0 +1,73 @@
+diff --git a/docs/plugins/using_update.py b/docs/plugins/using_update.py
+index ed43d53..9c8acfc 100644
+--- a/docs/plugins/using_update.py
++++ b/docs/plugins/using_update.py
+@@ -9,20 +9,56 @@ THIS_DIR = Path(__file__).parent
+ session = requests.Session()
+ 
+ 
+-def update_lib(lib, *, retry=0):
++from pathlib import Path
++from time import sleep
++
++import requests
++import tomli
++
++THIS_DIR = Path(__file__).parent
++
++session = requests.Session()
++
++class LibUpdateError(Exception):
++    pass
++
++def update_lib(lib, *, retry=0, max_retries=3, skip_on_fail=False, log_errors=False):
+     repo = lib['repo']
+     url = f'https://api.github.com/repos/{repo}'
+-    resp = session.get(url)
+-    if resp.status_code == 403 and retry < 3:
+-        print(f'retrying {repo} {retry}')
+-        sleep(5)
+-        return update_lib(lib, retry=retry + 1)
+-
+-    resp.raise_for_status()
+-    data = resp.json()
+-    stars = data['watchers_count']
+-    print(f'{repo}: {stars}')
+-    lib['stars'] = stars
++    try:
++        resp = session.get(url)
++        resp.raise_for_status()
++        data = resp.json()
++        stars = data['watchers_count']
++        print(f'{repo}: {stars}')
++        lib['stars'] = stars
++    except requests.exceptions.RequestException as e:
++        if retry < max_retries:
++            print(f'retrying {repo} {retry}')
++            sleep(5)
++            return update_lib(lib, retry=retry + 1, max_retries=max_retries, skip_on_fail=skip_on_fail, log_errors=log_errors)
++        elif skip_on_fail:
++            if log_errors:
++                print(f'Error updating {repo}: {e}')
++            return
++        else:
++            raise LibUpdateError(f'Error updating {repo}: {e}')
++
++with (THIS_DIR / 'using.toml').open('rb') as f:
++    table = tomli.load(f)
++
++libs = table['libs']
++for lib in libs:
++    try:
++        update_lib(lib, max_retries=3, skip_on_fail=True, log_errors=True)
++    except LibUpdateError as e:
++        print(e)
++
++libs.sort(key=lambda lib: lib['stars'], reverse=True)
++
++with (THIS_DIR / 'using.toml').open('w') as f:
++    for lib in libs:
++        f.write('[[libs]]\nrepo = "{repo}"\nstars = {stars}\n'.format(**lib))
+ 
+ 
+ with (THIS_DIR / 'using.toml').open('rb') as f:

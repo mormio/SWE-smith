@@ -1,0 +1,19 @@
+diff --git a/monkeytype/typing.py b/monkeytype/typing.py
+index 507732b..88c6993 100644
+--- a/monkeytype/typing.py
++++ b/monkeytype/typing.py
+@@ -52,12 +52,12 @@ def is_list(typ: type) -> bool:
+     return is_generic(typ) and name_of_generic(typ) == "List"
+ 
+ 
+-def make_typed_dict(*, required_fields=None, optional_fields=None) -> type:
++def make_typed_dict(*, required_fields=None, optional_fields=None, name=DUMMY_TYPED_DICT_NAME) -> type:
+     required_fields = required_fields or {}
+     optional_fields = optional_fields or {}
+     assert required_fields.keys().isdisjoint(optional_fields.keys())
+     return TypedDict(
+-        DUMMY_TYPED_DICT_NAME,
++        name,
+         {
+             "required_fields": TypedDict(
+                 DUMMY_REQUIRED_TYPED_DICT_NAME, required_fields

@@ -1,0 +1,35 @@
+diff --git a/docs/plugins/conversion_table.py b/docs/plugins/conversion_table.py
+index ffe6d4b..30e892f 100644
+--- a/docs/plugins/conversion_table.py
++++ b/docs/plugins/conversion_table.py
+@@ -40,6 +40,7 @@ class Row:
+     def input_type_str(self) -> str:
+         return f'{self.input_type.__name__}' if hasattr(self.input_type, '__name__') else f'{self.input_type}'
+ 
++    @property
+     @property
+     def input_source_str(self) -> str:
+         if self.python_input:
+@@ -52,6 +53,22 @@ class Row:
+         else:
+             return ''
+ 
++        # Add new logic to provide more detailed input source information
++        if self.input_type == 'Object':
++            if self.python_input:
++                return 'Python Dictionary'
++            elif self.json_input:
++                return 'JSON Object'
++        elif self.input_type == 'Array':
++            if self.python_input:
++                return 'Python List'
++            elif self.json_input:
++                return 'JSON Array'
++        elif isinstance(self.input_type, type):
++            return f'Python {self.input_type.__name__}'
++        else:
++            return f'{self.input_type}'
++
+ 
+ @dataclass
+ class ConversionTable:

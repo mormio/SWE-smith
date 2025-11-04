@@ -1,0 +1,90 @@
+diff --git a/docs/plugins/conversion_table.py b/docs/plugins/conversion_table.py
+index ffe6d4b..fe63811 100644
+--- a/docs/plugins/conversion_table.py
++++ b/docs/plugins/conversion_table.py
+@@ -20,6 +20,62 @@ from typing_extensions import TypedDict
+ from pydantic import ByteSize, InstanceOf
+ 
+ 
++@dataclass
++class Row:
++    field_type: type[Any] | str
++    input_type: type[Any] | str
++    python_input: bool = False
++    json_input: bool = False
++    strict: bool = False
++    condition: str | None = None
++    valid_examples: list[Any] | None = None
++    invalid_examples: list[Any] | None = None
++    core_schemas: list[type[CoreSchema]] | None = None
++
++    @property
++    def field_type_str(self) -> str:
++        return f'{self.field_type.__name__}' if hasattr(self.field_type, '__name__') else f'{self.field_type}'
++
++    @property
++    def input_type_str(self) -> str:
++        return f'{self.input_type.__name__}' if hasattr(self.input_type, '__name__') else f'{self.input_type}'
++
++    @property
++    def input_source_str(self) -> str:
++        if self.python_input:
++            if self.json_input:
++                return 'Python & JSON'
++            else:
++                return 'Python'
++        elif self.json_input:
++            return 'JSON'
++        else:
++            return ''
++
++
++@dataclass
++from __future__ import annotations as _annotations
++
++import collections
++import typing
++from collections import deque
++from collections.abc import Iterable, Mapping, Sequence
++from dataclasses import dataclass
++from datetime import date, datetime, time, timedelta
++from decimal import Decimal
++from enum import Enum, IntEnum
++from ipaddress import IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, IPv6Network
++from pathlib import Path
++from re import Pattern
++from typing import Any
++from uuid import UUID
++
++from pydantic_core import CoreSchema, core_schema
++from typing_extensions import TypedDict
++
++from pydantic import ByteSize, InstanceOf
++
++
+ @dataclass
+ class Row:
+     field_type: type[Any] | str
+@@ -104,6 +160,22 @@ class ConversionTable:
+     def filtered(self, predicate: typing.Callable[[Row], bool]) -> ConversionTable:
+         return ConversionTable([row for row in self.rows if predicate(row)])
+ 
++    def filter_by_field_type(self, field_type: type[Any] | str) -> ConversionTable:
++        return self.filtered(lambda row: row.field_type == field_type)
++
++    def filter_by_input_type(self, input_type: type[Any] | str) -> ConversionTable:
++        return self.filtered(lambda row: row.input_type == input_type)
++
++    def filter_by_condition(self, condition: str) -> ConversionTable:
++        return self.filtered(lambda row: row.condition == condition)
++
++
++table_rows: list[Row] = [
++    # ... (existing table_rows)
++]
++
++conversion_table = ConversionTable(table_rows).sorted()
++
+ 
+ table_rows: list[Row] = [
+     Row(
