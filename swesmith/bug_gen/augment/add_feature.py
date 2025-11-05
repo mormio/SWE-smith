@@ -56,43 +56,28 @@ litellm.suppress_debug_info = True
 random.seed(24)
 
 
-def gen_augmented_entity(
-    candidate: CodeEntity, configs: dict, n_bugs: int, model: str, temperature: float = 1
+def gen_augmented(
+    candidate: CodeEntity | FileEntity, configs: dict, n_bugs: int, model: str, temperature: float = 1
 ) -> list[BugRewrite]:
-    PROMPT_KEYS = ["system", "entity_instance"]
     """
-    Given the source code of a function, return n feature-augmented (buggy) versions.
+    Given the source code of a function or file, return n feature-augmented (buggy) versions.
     """
+    # Determine scope based on candidate type
+    is_entity = isinstance(candidate, CodeEntity)
+    PROMPT_KEYS = ["system", "entity_instance"] if is_entity else ["system", "file_instance"]
+    strategy_name = "llm_augmented_entity" if is_entity else "llm_augmented_file"
 
-    def format_prompt(prompt: str | None, config: dict, candidate: CodeEntity) -> str:
-        if not prompt:
-            return ""
-        env = jinja2.Environment()
-
-        def jinja_shuffle(seq):
-            result = list(seq)
-            random.shuffle(result)
-            return result
-
-        env.filters["shuffle"] = jinja_shuffle
-        template = env.from_string(prompt)
-
-        candidate_dict = {
-            field.name: getattr(candidate, field.name)
-            for field in dataclasses.fields(candidate)
+    # Get prompt content based on scope
+    if is_entity:
+        prompt_content = {
+            "func_name": candidate.name,
+            "file_src_code": open(candidate.file_path).read(),
         }
-        return template.render(**candidate_dict, **config.get("parameters", {}))
-    
-    def get_role(key: str) -> str:
-        if key == "system":
-            return "system"
-        return "user"
-
-    # Get prompt content
-    prompt_content = {
-        "func_name": candidate.name,
-        "file_src_code": open(candidate.file_path).read(),
-    }
+    else:
+        prompt_content = {
+            "file_path": candidate.file_path,
+            "file_src_code": open(candidate.file_path).read(),
+        }
 
     # Generate a rewrite
     messages = [
@@ -118,79 +103,9 @@ def gen_augmented_entity(
             BugRewrite(
                 rewrite=extract_code_block(message.content),
                 explanation=explanation,
-                cost=completion_cost(completion_response=response) / n_bugs, #TODO: the n_bugs param is confusing. 
+                cost=completion_cost(completion_response=response) / n_bugs, 
                 output=message.content,
-                strategy="llm_augmented_entity",
-            )
-        )
-    return bugs
-
-
-def gen_augmented_file(
-    candidate: FileEntity, configs: dict, n_bugs: int, model: str, temperature: float = 1
-) -> list[BugRewrite]:
-    PROMPT_KEYS = ["system", "file_instance"]
-    """
-    Given the source code of a file, return n feature-augmented (buggy) versions.
-    """
-
-    def format_prompt(prompt: str | None, config: dict, candidate: CodeEntity) -> str:
-        if not prompt:
-            return ""
-        env = jinja2.Environment()
-
-        def jinja_shuffle(seq):
-            result = list(seq)
-            random.shuffle(result)
-            return result
-
-        env.filters["shuffle"] = jinja_shuffle
-        template = env.from_string(prompt)
-
-        candidate_dict = {
-            field.name: getattr(candidate, field.name)
-            for field in dataclasses.fields(candidate)
-        }
-        return template.render(**candidate_dict, **config.get("parameters", {}))
-    
-    def get_role(key: str) -> str:
-        if key == "system":
-            return "system"
-        return "user"
-
-    # Get prompt content
-    prompt_content = {
-        "file_path": candidate.file_path,
-        "file_src_code": open(candidate.file_path).read(),
-    }
-
-    # Generate a rewrite
-    messages = [
-        {
-            "content": configs[k].format(**prompt_content),
-            "role": "user" if k != "system" else "system",
-        }
-        for k in PROMPT_KEYS
-        if k in configs
-    ]
-    # Remove empty messages
-    messages = [x for x in messages if x["content"]]
-    bugs = []
-    response: Any = completion(model=model, messages=messages, n=n_bugs, temperature=temperature)
-    for choice in response.choices:
-        message = choice.message
-        explanation = (
-            message.content.split("Explanation:")[-1].strip()
-            if "Explanation" in message.content
-            else message.content.split("```")[-1].strip()
-        )
-        bugs.append(
-            BugRewrite(
-                rewrite=extract_code_block(message.content),
-                explanation=explanation,
-                cost=completion_cost(completion_response=response) / n_bugs, #TODO: the n_bugs param is confusing. 
-                output=message.content,
-                strategy="llm_augmented_file",
+                strategy=strategy_name,
             )
         )
     return bugs
@@ -211,9 +126,6 @@ def main(
     assert os.path.exists(config_file), f"{config_file} not found"
     assert n_bugs > 0, "n_bugs must be greater than 0"
     configs = yaml.safe_load(open(config_file))
-    # assert all(key in configs for key in PROMPT_KEYS + ["name"]), (
-    #     f"Missing keys in {config_file}"
-    # ) #TODO: fix this. prompt keys different according to scope 
 
     # Clone repository, identify valid candidates
     print("Cloning repository...")
@@ -222,8 +134,10 @@ def main(
     print("Extracting candidates...")
     if scope == "entity":
         candidates = rp.extract_entities()
+        assert all(isinstance(x, CodeEntity) for x in candidates), "All candidates must be code entities"
     elif scope == "file":
         candidates = rp.extract_files()
+        assert all(isinstance(x, FileEntity) for x in candidates), "All candidates must be file entities"
     print(f"{len(candidates)} candidates found in {repo}")
     if not candidates:
         print(f"No candidates found in {repo}.")
@@ -249,14 +163,7 @@ def main(
 
     def _process_candidate(candidate: CodeEntity | FileEntity):
         # Run bug generation
-        if isinstance(candidate, CodeEntity):
-            assert scope == "entity"
-            bugs = gen_augmented_entity(candidate, configs, n_bugs, model, temperature)
-        elif isinstance(candidate, FileEntity):
-            assert scope == "file"
-            bugs = gen_augmented_file(candidate, configs, n_bugs, model, temperature)
-        else:
-            raise ValueError(f"Invalid candidate type: {type(candidate)}")
+        bugs = gen_augmented(candidate, configs, n_bugs, model, temperature)
         
         cost, n_bugs_generated, n_generation_failed = sum([x.cost for x in bugs]), 0, 0
 
