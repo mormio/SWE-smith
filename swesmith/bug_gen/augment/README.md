@@ -51,6 +51,7 @@ As mentioned above, since none of the generation runs yielded any f2p bugs, ther
 
 The config file containing system and user prompts can be found in `configs/bug_gen/lm_augment.yml`. 
 
-The unit tests for my code were added _in situ_ rather than in this directory. 
-	- `/swesmith/tests/profiles/test_base.py` -> test_extract_files() 
-	- `/swesmith/tests/bug_gen/llm/test_gen_augmented.py` -> test_gen_augmented_returns_bugs()
+The unit tests for my code were added _in situ_ rather than in this directory:  
+- `/swesmith/tests/profiles/test_base.py` → `test_extract_files()`  
+- `/swesmith/tests/bug_gen/llm/test_gen_augmented.py` → `test_gen_augmented_returns_bugs()`  
+
