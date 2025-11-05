@@ -14,14 +14,14 @@ This method was tested on two repositories: `Instagram/MonkeyType` (as used in t
 
 1. Start by ensuring docker is running and that you have enough disk space for the images. In the root `.env` file put your `ANTHROPIC_API_KEY`.
 2. Create the conda env for the target repo (run this from the SWE-smith root)
-		 - Instagram: `python -m swesmith.build_repo.try_install_py Instagram/MonkeyType configs/install_repo.sh --commit 70c3acf62950be5dfb28743c7a719bfdecebcd84`
-		 - Pydantic: `python -m swesmith.build_repo.try_install_py pydantic/pydantic configs/install_repo.sh --commit acb0f10fda1c78441e052c57b4288bc91431f852`
+    - Instagram: `python -m swesmith.build_repo.try_install_py Instagram/MonkeyType configs/install_repo.sh --commit 70c3acf62950be5dfb28743c7a719bfdecebcd84`
+    - Pydantic: `python -m swesmith.build_repo.try_install_py pydantic/pydantic configs/install_repo.sh --commit acb0f10fda1c78441e052c57b4288bc91431f852`
 3. Build the docker images
-		 - Instagram: `python -m swesmith.build_repo.create_images -p jyangballin/swesmith.x86_64.instagram_1776_monkeytype.70c3acf6 -y`
-		 - Pydantic: `python -m swesmith.build_repo.create_images -p jyangballin/swesmith.x86_64.pydantic_1776_pydantic.acb0f10f -y`
+    - Instagram: `python -m swesmith.build_repo.create_images -p jyangballin/swesmith.x86_64.instagram_1776_monkeytype.70c3acf6 -y`
+    - Pydantic: `python -m swesmith.build_repo.create_images -p jyangballin/swesmith.x86_64.pydantic_1776_pydantic.acb0f10f -y`
 4. Going forward, replace `<repo>` with either `Instagram__MonkeyType.70c3acf6` or `pydantic__pydantic.acb0f10f`
 5. Example command to **generate instances**: `python -m swesmith.bug_gen.augment.add_feature <repo> --n_bugs 1 --max_bugs 8 --model anthropic/claude-3-haiku-20240307 --config_file configs/bug_gen/lm_augment.yml`
-		 - By default the `scope` is set to `entity`. Optionally pass `--scope file` with the above command. 
+    - By default the `scope` is set to `entity`. Optionally pass `--scope file` with the above command. 
 6. Collect candidate tasks for validation: `python -m swesmith.bug_gen.collect_patches logs/augment_bug_gen/<repo>`
 7. Validate: `python -m swesmith.harness.valid logs/augment_bug_gen/<repo>_all_patches.json`
 8. Evaluate: No task instances passed validation (0 F2P), therefore evaluation was not run.
@@ -52,6 +52,6 @@ As mentioned above, since none of the generation runs yielded any f2p bugs, ther
 The config file containing system and user prompts can be found in `configs/bug_gen/lm_augment.yml`. 
 
 The unit tests for my code were added _in situ_ rather than in this directory:  
-- `/swesmith/tests/profiles/test_base.py` → `test_extract_files()`  
-- `/swesmith/tests/bug_gen/llm/test_gen_augmented.py` → `test_gen_augmented_returns_bugs()`  
+  - `/tests/profiles/test_base.py` → `test_extract_files()`  
+  - `/tests/bug_gen/llm/test_gen_augmented.py` → `test_gen_augmented_returns_bugs()`  
 

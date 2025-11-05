@@ -612,14 +612,16 @@ def test_extract_files(tmp_path):
 
     # Call extract_files (should exclude tests by default)
     files = mock_rp.extract_files()
-    assert str(valid_file) in files
-    assert str(test_file) not in files  # excluded
-    assert str(invalid_ext) not in files  # wrong ext
+    assert any(valid_file.name in f.file_path for f in files)
+    assert all(test_file.name not in f.file_path for f in files)  # excluded
+    assert all(invalid_ext.name not in f.file_path for f in files)  # wrong ext
+
 
     # Call again with exclude_tests=False (should include test files)
     files_all = mock_rp.extract_files(exclude_tests=False)
-    assert str(test_file) in files_all
-    assert str(valid_file) in files_all
+    assert any(test_file.name in f.file_path for f in files_all)  # included
+    assert any(valid_file.name in f.file_path for f in files_all)
+
 
 
 def test_extract_entities_simple(tmp_path):
